@@ -1,0 +1,1 @@
+{"functions":{"app/api/resumes/process/route.ts":{"maxDuration":60},"app/api/match/route.ts":{"maxDuration":60}}}
