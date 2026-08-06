@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { embedding, generateText } from "@/lib/gemini";
 import { ensureUserProfile } from "@/lib/user-profile";
 import { hybridMatch, reRankBySimilarity } from "@/lib/hybrid-matcher";
+import { analyzeSkillGap, type SkillGapAnalysis } from "@/lib/skill-gap-analyzer";
 
 const schema = z.object({
   title: z.string().min(2).max(200),
@@ -45,6 +46,7 @@ type CandidateResult = CandidateMatch & {
   strengths: string[];
   weaknesses: string[];
   explanation: string;
+  skillGapAnalysis?: SkillGapAnalysis;
 };
 
 type SemanticEvaluation = {
@@ -462,10 +464,11 @@ async function scoreCandidate(
   const { keywordScore } = calculateKeywordScore(job.description, candidate);
   const formattingScore = calculateFormattingScore(candidate);
 
-  const [semantic, projects, education] = await Promise.all([
+  const [semantic, projects, education, skillGapAnalysis] = await Promise.all([
     getSemanticEvaluation(job, candidate),
     getProjectsEvaluation(job, candidate),
     getEducationEvaluation(job, candidate),
+    analyzeSkillGap(candidate.skills, job.description, job.title, candidate.total_experience_months),
   ]);
 
   const scoreBreakdown: ScoreBreakdown = {
@@ -491,6 +494,7 @@ async function scoreCandidate(
     strengths: semantic.strengths,
     weaknesses: semantic.weaknesses,
     explanation: buildExplanation(candidate, overallScore, semantic),
+    skillGapAnalysis,
   };
 }
 
@@ -606,6 +610,7 @@ export async function POST(request: Request) {
             scoringError instanceof Error
               ? `Scoring incomplete for this candidate: ${scoringError.message}`
               : "Scoring incomplete for this candidate due to an unexpected error.",
+          skillGapAnalysis: undefined,
         } satisfies CandidateResult;
       }
     })
