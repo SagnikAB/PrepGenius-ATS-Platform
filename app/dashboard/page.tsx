@@ -5,6 +5,7 @@ import { MagnetLines } from "@/components/magnet-lines";
 import { DashboardCandidateList } from "@/components/dashboard-candidate-list";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 
 async function clearCandidateLibrary() {
   "use server";
@@ -64,9 +65,13 @@ export default async function Dashboard() {
                 Track structured profiles, rank applicants, and keep hiring conversations transparent.
               </p>
             </div>
-            <form action="/auth/signout" method="post">
-              <button className="accent-btn">Sign out</button>
-            </form>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link href="/analytics" className="accent-btn text-center">Analytics</Link>
+              <Link href="/logs" className="accent-btn text-center">Processing Logs</Link>
+              <form action="/auth/signout" method="post">
+                <button className="accent-btn">Sign out</button>
+              </form>
+            </div>
           </header>
 
           <div className="mt-6 grid gap-3 md:grid-cols-3">
