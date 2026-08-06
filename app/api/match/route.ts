@@ -114,6 +114,8 @@ const SKILL_DICTIONARY = [
 ];
 
 export const maxDuration = 60;
+const MAX_MATCH_CANDIDATES = 10;
+const SCORING_CONCURRENCY = 2;
 
 // ---------------------------------------------------------------------------
 // Pure helpers
@@ -139,6 +141,23 @@ function dedupe(values: string[]): string[] {
 function clampScore(value: number): number {
   if (Number.isNaN(value) || !Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  limit: number,
+  worker: (value: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  const runWorker = async () => {
+    while (nextIndex < values.length) {
+      const index = nextIndex++;
+      results[index] = await worker(values[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, values.length) }, runWorker));
+  return results;
 }
 
 function extractYearsRequired(description: string): number | null {
@@ -552,7 +571,7 @@ export async function POST(request: Request) {
 
   const { data: candidates, error: matchError } = await supabase.rpc("match_candidates", {
     query_embedding: vector,
-    match_count: 20,
+    match_count: MAX_MATCH_CANDIDATES,
   });
   if (matchError) return NextResponse.json({ error: matchError.message }, { status: 400 });
 
@@ -581,8 +600,7 @@ export async function POST(request: Request) {
     rankedCandidates = reRankBySimilarity(safeCandidates, hybridResult.topVectorMatches);
   }
 
-  const results = await Promise.all(
-    rankedCandidates.map(async (candidate) => {
+  const results = await mapWithConcurrency(rankedCandidates, SCORING_CONCURRENCY, async (candidate) => {
       try {
         return await scoreCandidate(parsed.data, candidate);
       } catch (scoringError) {
@@ -613,8 +631,7 @@ export async function POST(request: Request) {
           skillGapAnalysis: undefined,
         } satisfies CandidateResult;
       }
-    })
-  );
+  });
 
   results.sort((a, b) => b.overallScore - a.overallScore);
 

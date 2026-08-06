@@ -1,104 +1,67 @@
-'use client';
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
-import { RealTimeProcessingLogs, ProcessingStatsCard } from '@/components/real-time-logs';
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+export default async function LogsPage() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-export default function LogsPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        window.location.href = '/login';
-      }
-    });
-  }, []);
-
-  if (!isAuthenticated) {
-    return null;
-  }
+  const { data: resumes } = await supabase
+    .from("resumes")
+    .select("id,original_filename,processing_status,processing_error,created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const records = resumes ?? [];
+  const processing = records.filter((resume) => resume.processing_status === "processing").length;
+  const completed = records.filter((resume) => resume.processing_status === "completed").length;
+  const failed = records.filter((resume) => resume.processing_status === "failed").length;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
+    <main className="min-h-screen bg-gray-50 px-4 py-8">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Processing Center</h1>
-          <p className="text-gray-600 mt-2">Monitor resume processing in real-time</p>
-        </div>
+          <p className="mt-2 text-gray-600">Review resume-processing records in your workspace.</p>
+        </header>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Real-time Logs */}
-          <div className="lg:col-span-3">
-            <RealTimeProcessingLogs />
-          </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+          <section className="lg:col-span-3 rounded-lg bg-white shadow">
+            <div className="border-b border-gray-200 p-6">
+              <h2 className="text-2xl font-bold text-gray-900">Processing history</h2>
+              <p className="mt-1 text-gray-600">Most recent 50 resume-processing records.</p>
+            </div>
+            <div className="max-h-[32rem] divide-y divide-gray-100 overflow-y-auto">
+              {records.length === 0 ? (
+                <p className="p-6 text-gray-500">No resume processing records yet.</p>
+              ) : records.map((resume) => (
+                <article key={resume.id} className="p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="truncate font-medium text-gray-900">{resume.original_filename}</p>
+                    <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">{resume.processing_status}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">{new Date(resume.created_at).toLocaleString()}</p>
+                  {resume.processing_error && <p className="mt-2 text-sm text-red-600">{resume.processing_error}</p>}
+                </article>
+              ))}
+            </div>
+          </section>
 
-          {/* Sidebar Stats */}
-          <div className="space-y-6">
-            <ProcessingStatsCard
-              stats={{
-                totalProcessing: 3,
-                totalCompleted: 127,
-                totalFailed: 5,
-              }}
-            />
-
-            {/* Quick Info Panel */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">System Info</h3>
+          <aside className="space-y-6">
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">Queue status</h2>
               <div className="space-y-3 text-sm text-gray-600">
-                <div>
-                  <p className="font-medium text-gray-900">Batch Size</p>
-                  <p>5 resumes / batch</p>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Avg Processing</p>
-                  <p>12.5 seconds/resume</p>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Success Rate</p>
-                  <p className="text-green-600 font-medium">96.2%</p>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Uptime</p>
-                  <p className="text-green-600 font-medium">99.8%</p>
-                </div>
+                <p>Processing: <span className="font-semibold text-gray-900">{processing}</span></p>
+                <p>Completed: <span className="font-semibold text-gray-900">{completed}</span></p>
+                <p>Failed: <span className="font-semibold text-gray-900">{failed}</span></p>
               </div>
             </div>
-
-            {/* Recent Activity */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-              <div className="space-y-2 text-sm">
-                <p className="text-gray-600">
-                  <span className="font-medium">127</span> resumes processed today
-                </p>
-                <p className="text-gray-600">
-                  <span className="font-medium">5</span> pending uploads
-                </p>
-                <p className="text-gray-600">
-                  <span className="font-medium">0</span> errors in last hour
-                </p>
-                <button className="mt-4 w-full px-3 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition">
-                  View History
-                </button>
-              </div>
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h2 className="mb-2 text-lg font-semibold text-gray-900">About this page</h2>
+              <p className="text-sm text-gray-600">Counts and records are read directly from your resume-processing data. Live streaming is not enabled.</p>
             </div>
-          </div>
-        </div>
-
-        {/* Bottom Info Panel */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="font-semibold text-blue-900 mb-2">💡 Pro Tip</h3>
-          <p className="text-blue-800">
-            Real-time processing logs update automatically. Pause to review logs, or enable auto-scroll to
-            follow live updates. Click on any log entry to view detailed processing information.
-          </p>
+          </aside>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

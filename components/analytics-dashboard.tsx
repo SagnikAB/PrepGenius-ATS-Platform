@@ -267,27 +267,19 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     recall: data.performanceTrend[data.performanceTrend.length - 1]?.recall || 0,
     f1Score: data.performanceTrend[data.performanceTrend.length - 1]?.f1 || 0,
     excellentMatches: qualityData[0].value,
-    successRate: 0.85,
+    successRate: 0,
   };
 
   return (
     <div className="space-y-6 bg-gray-50 p-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-        <p className="text-gray-600 mt-2">Real-time matching performance metrics</p>
+        <h1 className="text-3xl font-bold text-gray-900">Workspace analytics</h1>
+        <p className="text-gray-600 mt-2">Resume-processing activity and extracted candidate skills.</p>
       </div>
 
       <KeyMetricsSummary data={keyMetrics} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MatchScoreDistributionChart data={data.matchScoreDistribution} />
-        <MatchQualityChart data={qualityData} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TimeSeriesChart data={data.timeSeriesData} />
-        <PerformanceMetricsChart data={data.performanceTrend} />
-      </div>
+      <TimeSeriesChart data={data.timeSeriesData} />
 
       <SkillGapChart data={data.skillGapData} />
 
