@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { embedding } from "@/lib/gemini";
-import { extractText, parseResume, profileText } from "@/lib/resume";
+import { extractText, parseResumeWithATS, profileText } from "@/lib/resume";
 import { ensureUserProfile } from "@/lib/user-profile";
 export const runtime = "nodejs";
 
@@ -22,10 +22,10 @@ export async function POST(request: Request) {
   if (resumeError || !resume) return NextResponse.json({ error: resumeError?.message || "Could not create resume" }, { status: 500 });
   try {
     const text = await extractText(Buffer.from(await file.arrayBuffer()), file.type);
-    const parsed = await parseResume(text); const profile = profileText(parsed); const vector = await embedding(profile);
+    const parsed = await parseResumeWithATS(text); const profile = profileText(parsed); const vector = await embedding(profile);
     await supabase.from("candidates").update({ ...parsed, profile_text: profile, embedding: vector }).eq("id", candidate.id);
-    await supabase.from("resumes").update({ extracted_text: text, processing_status: "completed" }).eq("id", resume.id);
-    return NextResponse.json({ candidate: { id: candidate.id, full_name: parsed.full_name } });
+    await supabase.from("resumes").update({ extracted_text: text, ats_formatting_report: parsed.atsFormatting, processing_status: "completed" }).eq("id", resume.id);
+    return NextResponse.json({ candidate: { id: candidate.id, full_name: parsed.full_name }, ats: parsed.atsFormatting });
   } catch (error) {
     await supabase.from("resumes").update({ processing_status: "failed", processing_error: error instanceof Error ? error.message : "Processing failed" }).eq("id", resume.id);
     return NextResponse.json({ error: "The file was saved, but parsing failed. Review the resume record and retry." }, { status: 422 });
