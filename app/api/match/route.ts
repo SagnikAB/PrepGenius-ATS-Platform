@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { embedding, generateText } from "@/lib/gemini";
 import { ensureUserProfile } from "@/lib/user-profile";
+import { hybridMatch, reRankBySimilarity } from "@/lib/hybrid-matcher";
 
 const schema = z.object({
   title: z.string().min(2).max(200),
@@ -553,8 +554,31 @@ export async function POST(request: Request) {
 
   const safeCandidates = (candidates ?? []) as CandidateMatch[];
 
+  // Apply hybrid matching: re-rank pgvector results using skill vector similarity
+  let hybridResult;
+  try {
+    hybridResult = await hybridMatch(
+      vector,
+      safeCandidates,
+      parsed.data.title,
+      parsed.data.description,
+      0.25, // Similarity threshold: keep candidates with >25% skill match
+      20
+    );
+  } catch (hybridError) {
+    // If hybrid matching fails, fall back to original pgvector ordering
+    console.warn("Hybrid matching failed, using pgvector ordering:", hybridError);
+    hybridResult = null;
+  }
+
+  // Re-rank candidates based on hybrid matching if available
+  let rankedCandidates = safeCandidates;
+  if (hybridResult && hybridResult.topVectorMatches.length > 0) {
+    rankedCandidates = reRankBySimilarity(safeCandidates, hybridResult.topVectorMatches);
+  }
+
   const results = await Promise.all(
-    safeCandidates.map(async (candidate) => {
+    rankedCandidates.map(async (candidate) => {
       try {
         return await scoreCandidate(parsed.data, candidate);
       } catch (scoringError) {

@@ -46,6 +46,26 @@ const resumeExtractionSchema: GeminiSchema = {
   },
   required: ["full_name", "skills", "education", "experience", "total_experience_months"],
 };
+export function anonymizePII(text: string): string {
+  let anonymized = text;
+
+  // Anonymize email addresses: name@domain.com → [EMAIL]
+  anonymized = anonymized.replace(/[\w\.\-+]+@[\w\.\-]+\.\w+/g, "[EMAIL]");
+
+  // Anonymize phone numbers: various international formats
+  anonymized = anonymized.replace(/(\+\d{1,3}[\s\-]?)?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{4}/g, "[PHONE]");
+  anonymized = anonymized.replace(/\+\d{1,3}\s\d{1,14}/g, "[PHONE]");
+
+  // Anonymize social media and contact handles (LinkedIn, GitHub URLs, etc.)
+  anonymized = anonymized.replace(/(linkedin\.com\/in\/[\w\-]+|github\.com\/[\w\-]+)/gi, "[CONTACT_PROFILE]");
+
+  // Anonymize names prefixed with common headers (Name:, Applicant:, Candidate:, Author:, etc.)
+  // Match "Name: John Doe" or "APPLICANT\nJohn Doe" patterns
+  anonymized = anonymized.replace(/(?:^|\n)\s*(?:Name|Candidate|Applicant|Author|Contact)[\s:]+([^\n]+)/gim, "\n[CANDIDATE_NAME]");
+
+  return anonymized;
+}
+
 export async function extractText(file: Buffer, mime: string) {
   if (mime === "application/pdf") return (await pdf(file)).text;
   if (mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return (await mammoth.extractRawText({ buffer: file })).value;
@@ -57,7 +77,8 @@ export async function extractText(file: Buffer, mime: string) {
   throw new Error("Only PDF, DOCX, TXT, MD, and RTF resumes are supported.");
 }
 export async function parseResume(text: string): Promise<ParsedCandidate> {
-  const data = await generateJson<Partial<ParsedCandidate>>(`Resume:\n${text.slice(0, 50000)}`, "Extract resume facts only. Normalize degree names and skill names. Return a JSON object with full_name, email, phone, location, headline, summary, skills (string[]), education (array), experience (array), and total_experience_months (integer). Do not invent facts. Keep summary under 80 words and each experience entry to three short highlights maximum.", resumeExtractionSchema);
+  const anonymizedText = anonymizePII(text);
+  const data = await generateJson<Partial<ParsedCandidate>>(`Resume:\n${anonymizedText.slice(0, 50000)}`, "Extract resume facts only. Normalize degree names and skill names. Return a JSON object with full_name, email, phone, location, headline, summary, skills (string[]), education (array), experience (array), and total_experience_months (integer). Do not invent facts. Keep summary under 80 words and each experience entry to three short highlights maximum. For anonymized sections marked [EMAIL], [PHONE], [CANDIDATE_NAME], infer reasonable placeholder values or leave empty.", resumeExtractionSchema);
   const months = data.total_experience_months;
   return { full_name: data.full_name || "Unknown candidate", skills: Array.isArray(data.skills) ? data.skills : [], education: Array.isArray(data.education) ? data.education : [], experience: Array.isArray(data.experience) ? data.experience : [], total_experience_months: typeof months === "number" && Number.isFinite(months) ? months : 0, email: data.email, phone: data.phone, location: data.location, headline: data.headline, summary: data.summary };
 }
