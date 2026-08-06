@@ -62,9 +62,14 @@ export default async function Home() {
                   </button>
                 </form>
               ) : (
-                <Link href="/login" className="secondary-btn">
-                  Sign in
-                </Link>
+                <>
+                  <Link href="/login" className="secondary-btn">
+                    Sign in
+                  </Link>
+                  <Link href="/signup" className="secondary-btn">
+                    Sign up
+                  </Link>
+                </>
               )}
             </div>
             <div className="mt-8 flex flex-wrap gap-3">

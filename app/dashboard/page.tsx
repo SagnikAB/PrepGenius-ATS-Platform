@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { UploadResume } from "@/components/upload-resume";
 import { JobMatch } from "@/components/job-match";
 import { MagnetLines } from "@/components/magnet-lines";
+import { DashboardCandidateList } from "@/components/dashboard-candidate-list";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -93,6 +94,9 @@ export default async function Dashboard() {
                 <div>
                   <p className="section-label">Candidate library</p>
                   <h2 className="mt-2 text-xl font-bold">Latest processed profiles</h2>
+                  <p className="mt-1 text-sm" style={{ color: "var(--card-muted)" }}>
+                    Check candidates to compare side-by-side
+                  </p>
                 </div>
                 <form action={clearCandidateLibrary}>
                   <button type="submit" className="secondary-btn px-3 py-2 text-sm" disabled={!candidates?.length}>
@@ -101,18 +105,11 @@ export default async function Dashboard() {
                 </form>
               </div>
 
-              <div className="mt-4 divide-y divide-white/10">
+              <div className="mt-4">
                 {candidates?.length ? (
-                  candidates.map((c: any) => (
-                    <div className="py-3" key={c.id}>
-                      <p className="font-semibold">{c.full_name}</p>
-                      <p className="mt-1 text-sm" style={{ color: "var(--card-muted)" }}>
-                        {c.headline || "Profile processed"} · {c.skills.slice(0, 5).join(", ")}
-                      </p>
-                    </div>
-                  ))
+                  <DashboardCandidateList initialCandidates={candidates as any} />
                 ) : (
-                  <p className="py-3 text-sm" style={{ color: "var(--card-muted)" }}>
+                  <p className="text-sm" style={{ color: "var(--card-muted)" }}>
                     No resumes processed yet.
                   </p>
                 )}
