@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { UIverseLoader } from "@/components/uiverse-elements";
 
 async function readTextPreview(file: File) {
   if (file.type.startsWith("text/") || file.name.toLowerCase().endsWith(".md") || file.name.toLowerCase().endsWith(".txt") || file.name.toLowerCase().endsWith(".rtf")) {
@@ -173,7 +174,7 @@ export function UploadResume() {
       }}
       onDragLeave={() => setDragActive(false)}
       onDrop={handleDrop}
-      className={`glass-panel rounded-[1.5rem] border-2 border-dashed p-6 text-left transition ${dragActive ? "border-indigo-400/60 bg-indigo-500/10" : ""}`}
+      className={`glass-panel rounded-[1.5rem] border-2 border-dashed p-6 text-left transition ${dragActive ? "border-sky-400/60 bg-sky-500/10 shadow-[0_0_25px_rgba(56,189,248,0.25)]" : ""}`}
       style={{ borderColor: "var(--card-border)", color: "var(--card-foreground)" }}
     >
       <div className="flex items-start justify-between gap-4">
@@ -184,7 +185,7 @@ export function UploadResume() {
             Upload single or multiple resumes (or bulk candidate documents). Files are kept private to your team and limited to 10 MB each.
           </p>
         </div>
-        <div className="rounded-2xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-xl">⬆️</div>
+        <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-3 text-xl shadow-inner">⬆️</div>
       </div>
 
       <input
@@ -197,7 +198,7 @@ export function UploadResume() {
         disabled={isProcessing}
       />
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 flex items-center gap-3">
         <button
           onClick={() => input.current?.click()}
           disabled={isProcessing}
@@ -205,11 +206,12 @@ export function UploadResume() {
         >
           {isProcessing ? "Processing batch…" : "Choose files"}
         </button>
+        {isProcessing && <UIverseLoader text="Extracting candidate profiles…" />}
       </div>
 
       {uploads.length > 0 && (
         <div className="mt-6 space-y-3 border-t border-white/10 pt-4">
-          <p className="text-sm font-semibold">
+          <p className="text-xs font-semibold uppercase tracking-wider text-sky-200">
             Upload progress ({uploads.filter((u) => u.status === "success").length}/{uploads.length})
           </p>
           {uploads.map((upload) => {
@@ -217,29 +219,31 @@ export function UploadResume() {
             return (
               <div
                 key={upload.id}
-                className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3"
+                className="uiverse-card flex items-center gap-3 p-3 text-xs"
               >
                 <span className="text-lg">{badge.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-medium">{upload.file.name}</p>
-                    <span className="text-xs font-medium" style={{ color: "var(--card-muted)" }}>
+                    <p className="truncate font-medium text-white">{upload.file.name}</p>
+                    <span className="font-medium text-sky-300">
                       {upload.message}
                     </span>
                   </div>
-                  <p className="text-xs" style={{ color: "var(--card-muted)" }}>
+                  <p className="mt-0.5 text-[11px]" style={{ color: "var(--card-muted)" }}>
                     {formatFileSize(upload.file.size)} • {badge.label}
                   </p>
                   {upload.preview && (
-                    <p className="mt-1 truncate text-xs" style={{ color: "var(--card-muted)" }}>
+                    <p className="mt-1 truncate text-[11px]" style={{ color: "var(--card-muted)" }}>
                       {upload.preview}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {upload.status === "success" && <span className="text-lg text-emerald-400">✓</span>}
-                  {upload.status === "error" && <span className="text-lg text-rose-400">✗</span>}
-                  {upload.status === "uploading" && <span className="animate-spin">⟳</span>}
+                  {upload.status === "success" && <span className="text-base text-emerald-400 font-bold">✓</span>}
+                  {upload.status === "error" && <span className="text-base text-rose-400 font-bold">✗</span>}
+                  {upload.status === "uploading" && (
+                    <div className="h-4 w-4 rounded-full border-2 border-sky-400/20 border-t-sky-400 animate-spin" />
+                  )}
                 </div>
               </div>
             );

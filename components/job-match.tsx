@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { UIverseAvatar, UIverseBadge } from "@/components/uiverse-elements";
 
 type Match = {
   id: string;
@@ -88,19 +89,24 @@ export function JobMatch() {
       {results.length > 0 && (
         <div className="mt-6 space-y-3">
           {results.map((r) => (
-            <article key={r.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <article key={r.id} className="uiverse-card p-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{r.full_name}</p>
-                  <p className="mt-1 text-sm" style={{ color: "var(--card-muted)" }}>
-                    {r.headline}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <UIverseAvatar name={r.full_name} />
+                  <div>
+                    <p className="font-semibold text-white">{r.full_name}</p>
+                    {r.headline && (
+                      <p className="mt-0.5 text-xs" style={{ color: "var(--card-muted)" }}>
+                        {r.headline}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-300">
-                  {Math.round(r.similarity * 100)}%
-                </div>
+                <UIverseBadge variant={r.similarity >= 0.8 ? "mint" : r.similarity >= 0.6 ? "sky" : "amber"}>
+                  {Math.round(r.similarity * 100)}% Match
+                </UIverseBadge>
               </div>
-              <div className="mt-3 text-sm leading-6" style={{ color: "var(--card-muted)" }}>
+              <div className="mt-3 text-xs leading-5 border-t border-white/10 pt-3 text-slate-300">
                 {r.explanation}
               </div>
             </article>
