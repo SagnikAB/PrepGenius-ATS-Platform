@@ -43,6 +43,7 @@ function getFileTypeBadge(file: File) {
 }
 
 type UploadStatus = {
+  id: string;
   file: File;
   status: "pending" | "uploading" | "success" | "error";
   message: string;
@@ -58,18 +59,30 @@ export function UploadResume() {
 
   async function processFile(file: File) {
     const excerpt = await readTextPreview(file);
+    const form = new FormData();
+    form.append("file", file);
+
     const response = await fetch("/api/resumes/process", {
       method: "POST",
-      body: (() => {
-        const form = new FormData();
-        form.append("file", file);
-        return form;
-      })(),
+      body: form,
     });
     const data = await response.json();
+
+    if (!response.ok || data.error) {
+      return {
+        success: false,
+        message: data.error || "Failed to process resume.",
+        preview: excerpt,
+      };
+    }
+
+    const candidateMsg = data.processedCount && data.processedCount > 1
+      ? `Processed ${data.processedCount} candidate profiles.`
+      : `${data.candidate?.full_name || file.name} processed successfully.`;
+
     return {
-      success: !data.error,
-      message: data.error || `${data.candidate.full_name} is ready.`,
+      success: true,
+      message: candidateMsg,
       preview: excerpt,
     };
   }
@@ -85,57 +98,65 @@ export function UploadResume() {
       return;
     }
 
-    const newUploads: UploadStatus[] = fileArray.map((file) => ({
+    const itemsToAdd: UploadStatus[] = fileArray.map((file, idx) => ({
+      id: `${file.name}-${Date.now()}-${idx}-${Math.random().toString(36).slice(2)}`,
       file,
       status: "pending",
       message: "Queued for processing…",
       preview: "",
     }));
 
-    setUploads((prev) => [...prev, ...newUploads]);
+    setUploads((prev) => [...prev, ...itemsToAdd]);
     setIsProcessing(true);
 
-    for (let i = 0; i < fileArray.length; i++) {
-      const file = fileArray[i];
-      const index = uploads.length + i;
+    let hasSuccess = false;
 
-      setUploads((prev) => {
-        const updated = [...prev];
-        updated[index] = { ...updated[index], status: "uploading", message: "Uploading and extracting…" };
-        return updated;
-      });
+    // Process files concurrently
+    await Promise.all(
+      itemsToAdd.map(async (item) => {
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.id === item.id ? { ...u, status: "uploading", message: "Uploading and extracting…" } : u
+          )
+        );
 
-      try {
-        const result = await processFile(file);
-        setUploads((prev) => {
-          const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            status: result.success ? "success" : "error",
-            message: result.message,
-            preview: result.preview,
-          };
-          return updated;
-        });
+        try {
+          const result = await processFile(item.file);
+          if (result.success) hasSuccess = true;
 
-        if (result.success) {
-          router.refresh();
+          setUploads((prev) =>
+            prev.map((u) =>
+              u.id === item.id
+                ? {
+                    ...u,
+                    status: result.success ? "success" : "error",
+                    message: result.message,
+                    preview: result.preview,
+                  }
+                : u
+            )
+          );
+        } catch (error) {
+          setUploads((prev) =>
+            prev.map((u) =>
+              u.id === item.id
+                ? {
+                    ...u,
+                    status: "error",
+                    message: error instanceof Error ? error.message : "Upload failed.",
+                  }
+                : u
+            )
+          );
         }
-      } catch (error) {
-        setUploads((prev) => {
-          const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            status: "error",
-            message: error instanceof Error ? error.message : "Upload failed.",
-          };
-          return updated;
-        });
-      }
-    }
+      })
+    );
 
     setIsProcessing(false);
     if (input.current) input.current.value = "";
+    if (hasSuccess) {
+      router.refresh();
+    }
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
@@ -160,7 +181,7 @@ export function UploadResume() {
           <p className="section-label">Resume intake</p>
           <h3 className="mt-2 text-xl font-semibold">Drop documents here</h3>
           <p className="mt-2 text-sm leading-6" style={{ color: "var(--card-muted)" }}>
-            Upload one or multiple resumes. Files are private to your team, limited to 10 MB each, and ready for structured extraction.
+            Upload single or multiple resumes (or bulk candidate documents). Files are kept private to your team and limited to 10 MB each.
           </p>
         </div>
         <div className="rounded-2xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-xl">⬆️</div>
@@ -182,23 +203,30 @@ export function UploadResume() {
           disabled={isProcessing}
           className="accent-btn text-sm"
         >
-          {isProcessing ? "Processing…" : "Choose files"}
+          {isProcessing ? "Processing batch…" : "Choose files"}
         </button>
       </div>
 
       {uploads.length > 0 && (
         <div className="mt-6 space-y-3 border-t border-white/10 pt-4">
-          <p className="text-sm font-semibold">Upload progress ({uploads.filter((u) => u.status === "success").length}/{uploads.length})</p>
-          {uploads.map((upload, idx) => {
+          <p className="text-sm font-semibold">
+            Upload progress ({uploads.filter((u) => u.status === "success").length}/{uploads.length})
+          </p>
+          {uploads.map((upload) => {
             const badge = getFileTypeBadge(upload.file);
             return (
               <div
-                key={idx}
+                key={upload.id}
                 className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3"
               >
                 <span className="text-lg">{badge.icon}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-medium">{upload.file.name}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-medium">{upload.file.name}</p>
+                    <span className="text-xs font-medium" style={{ color: "var(--card-muted)" }}>
+                      {upload.message}
+                    </span>
+                  </div>
                   <p className="text-xs" style={{ color: "var(--card-muted)" }}>
                     {formatFileSize(upload.file.size)} • {badge.label}
                   </p>
@@ -209,8 +237,8 @@ export function UploadResume() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {upload.status === "success" && <span className="text-lg">✓</span>}
-                  {upload.status === "error" && <span className="text-lg">✗</span>}
+                  {upload.status === "success" && <span className="text-lg text-emerald-400">✓</span>}
+                  {upload.status === "error" && <span className="text-lg text-rose-400">✗</span>}
                   {upload.status === "uploading" && <span className="animate-spin">⟳</span>}
                 </div>
               </div>
@@ -221,3 +249,4 @@ export function UploadResume() {
     </section>
   );
 }
+

@@ -3,7 +3,18 @@ import pdf from "pdf-parse";
 import { generateJson, type GeminiSchema } from "@/lib/gemini";
 import { checkATSFormatting, type ATSFormattingReport } from "@/lib/ats-formatter-checker";
 
-export type ParsedCandidate = { full_name: string; email?: string; phone?: string; location?: string; headline?: string; summary?: string; skills: string[]; education: Array<{ degree?: string; institution?: string; field?: string; year?: string }>; experience: Array<{ title?: string; company?: string; start_date?: string; end_date?: string; highlights?: string[] }>; total_experience_months: number };
+export type ParsedCandidate = {
+  full_name: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  headline?: string;
+  summary?: string;
+  skills: string[];
+  education: Array<{ degree?: string; institution?: string; field?: string; year?: string }>;
+  experience: Array<{ title?: string; company?: string; start_date?: string; end_date?: string; highlights?: string[] }>;
+  total_experience_months: number;
+};
 
 const MAX_RESUME_CHARS = 50_000;
 const MAX_SKILLS = 60;
@@ -13,7 +24,7 @@ const SKILL_PATTERNS = [
   "AWS", "Azure", "GCP", "Docker", "Kubernetes", "Terraform", "Git", "GitHub Actions", "Jenkins",
   "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "Kafka", "GraphQL", "REST", "gRPC",
   "HTML", "CSS", "Tailwind", "Figma", "Jest", "Cypress", "Playwright", "Machine Learning", "TensorFlow", "PyTorch",
-  "Pandas", "NumPy", "Tableau", "Power BI", "Excel", "Salesforce", "Supabase",
+  "Pandas", "NumPy", "Tableau", "Power BI", "Excel", "Salesforce", "Supabase", "GitLab", "CI/CD",
 ];
 
 const resumeExtractionSchema: GeminiSchema = {
@@ -58,23 +69,14 @@ const resumeExtractionSchema: GeminiSchema = {
   },
   required: ["full_name", "skills", "education", "experience", "total_experience_months"],
 };
+
 export function anonymizePII(text: string): string {
   let anonymized = text;
-
-  // Anonymize email addresses: name@domain.com → [EMAIL]
   anonymized = anonymized.replace(/[\w\.\-+]+@[\w\.\-]+\.\w+/g, "[EMAIL]");
-
-  // Anonymize phone numbers: various international formats
   anonymized = anonymized.replace(/(\+\d{1,3}[\s\-]?)?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{4}/g, "[PHONE]");
   anonymized = anonymized.replace(/\+\d{1,3}\s\d{1,14}/g, "[PHONE]");
-
-  // Anonymize social media and contact handles (LinkedIn, GitHub URLs, etc.)
   anonymized = anonymized.replace(/(linkedin\.com\/in\/[\w\-]+|github\.com\/[\w\-]+)/gi, "[CONTACT_PROFILE]");
-
-  // Anonymize names prefixed with common headers (Name:, Applicant:, Candidate:, Author:, etc.)
-  // Match "Name: John Doe" or "APPLICANT\nJohn Doe" patterns
   anonymized = anonymized.replace(/(?:^|\n)\s*(?:Name|Candidate|Applicant|Author|Contact)[\s:]+([^\n]+)/gim, "\n[CANDIDATE_NAME]");
-
   return anonymized;
 }
 
@@ -109,13 +111,20 @@ function uniqueStrings(values: unknown[], max = MAX_SKILLS): string[] {
   return result;
 }
 
+const SECTION_HEADER_REGEX = /^(resume|curriculum vitae|cv|profile|contact|summary|professional summary|work experience|experience|employment|education|skills|technical skills|objective|career objective|executive summary|personal details|about me|projects|key projects|certifications)$/i;
+
 function extractContactDetails(text: string) {
   const email = text.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/i)?.[0];
   const phone = text.match(/(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3,4}[\s.-]\d{3,4}/)?.[0]?.trim();
   const named = text.match(/(?:^|\n)\s*(?:name|candidate|applicant)\s*:\s*([^\n]+)/i)?.[1];
-  const firstCandidateLine = text.split("\n").map((line) => line.trim()).find((line) =>
-    /^[A-Za-z][A-Za-z .'-]{2,70}$/.test(line) && !/^(resume|curriculum vitae|profile|contact)$/i.test(line)
-  );
+  
+  const candidateLines = text.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
+  const firstCandidateLine = candidateLines.find((line) => {
+    if (SECTION_HEADER_REGEX.test(line)) return false;
+    if (/^(page \d|http|www|email|phone)/i.test(line)) return false;
+    return /^[A-Z][A-Za-z .'-]{1,50}$/.test(line);
+  });
+
   return { email, phone, fullName: cleanString(named ?? firstCandidateLine, 100) };
 }
 
@@ -140,7 +149,8 @@ function parseDateMonth(value: unknown): number | null {
 }
 
 function estimateExperienceMonths(experience: ParsedCandidate["experience"]): number {
-  const ranges = experience.map((entry) => ({ start: parseDateMonth(entry.start_date), end: parseDateMonth(entry.end_date) }))
+  const ranges = experience
+    .map((entry) => ({ start: parseDateMonth(entry.start_date), end: parseDateMonth(entry.end_date) }))
     .filter((range): range is { start: number; end: number } => range.start !== null && range.end !== null && range.end >= range.start)
     .sort((a, b) => a.start - b.start);
   if (!ranges.length) return 0;
@@ -154,20 +164,43 @@ function estimateExperienceMonths(experience: ParsedCandidate["experience"]): nu
   return Math.min(600, total + end - start + 1);
 }
 
-function normalizeCandidate(data: Partial<ParsedCandidate>, contact: ReturnType<typeof extractContactDetails>, knownSkills: string[]): ParsedCandidate {
+function normalizeCandidate(
+  data: Partial<ParsedCandidate>,
+  contact: ReturnType<typeof extractContactDetails>,
+  knownSkills: string[],
+  fallbackName = "Unknown candidate"
+): ParsedCandidate {
   const education = Array.isArray(data.education) ? data.education.slice(0, 10).map((entry) => ({
-    degree: cleanString(entry?.degree, 150), institution: cleanString(entry?.institution, 200), field: cleanString(entry?.field, 150), year: cleanString(entry?.year, 20),
+    degree: cleanString(entry?.degree, 150),
+    institution: cleanString(entry?.institution, 200),
+    field: cleanString(entry?.field, 150),
+    year: cleanString(entry?.year, 20),
   })) : [];
+  
   const experience = Array.isArray(data.experience) ? data.experience.slice(0, 15).map((entry) => ({
-    title: cleanString(entry?.title, 150), company: cleanString(entry?.company, 150), start_date: cleanString(entry?.start_date, 50), end_date: cleanString(entry?.end_date, 50),
+    title: cleanString(entry?.title, 150),
+    company: cleanString(entry?.company, 150),
+    start_date: cleanString(entry?.start_date, 50),
+    end_date: cleanString(entry?.end_date, 50),
     highlights: uniqueStrings(Array.isArray(entry?.highlights) ? entry.highlights : [], 3),
   })) : [];
+
+  const rawLLMName = cleanString(data.full_name, 100);
+  const isInvalidLLMName = !rawLLMName || /^\[?candidate[ _]?name\]?$/i.test(rawLLMName) || /unknown candidate/i.test(rawLLMName) || SECTION_HEADER_REGEX.test(rawLLMName);
+
+  const fullName = !isInvalidLLMName
+    ? rawLLMName
+    : (contact.fullName && !SECTION_HEADER_REGEX.test(contact.fullName)
+        ? contact.fullName
+        : fallbackName);
+
   const modelMonths = Number(data.total_experience_months);
   const estimatedMonths = estimateExperienceMonths(experience);
+
   return {
-    full_name: contact.fullName ?? cleanString(data.full_name, 100) ?? "Unknown candidate",
-    email: contact.email ?? cleanString(data.email, 254),
-    phone: contact.phone ?? cleanString(data.phone, 50),
+    full_name: fullName,
+    email: cleanString(data.email, 254) ?? contact.email,
+    phone: cleanString(data.phone, 50) ?? contact.phone,
     location: cleanString(data.location, 150),
     headline: cleanString(data.headline, 200),
     summary: cleanString(data.summary, 700),
@@ -178,35 +211,135 @@ function normalizeCandidate(data: Partial<ParsedCandidate>, contact: ReturnType<
   };
 }
 
-export async function extractText(file: Buffer, mime: string) {
-  if (mime === "application/pdf") return (await pdf(file)).text;
-  if (mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return (await mammoth.extractRawText({ buffer: file })).value;
-  if (mime === "text/plain" || mime === "text/markdown" || mime === "text/rtf" || mime === "application/rtf") return file.toString("utf-8");
-  if (mime === "application/octet-stream") {
+export async function extractText(file: Buffer, mime: string, filename?: string): Promise<string> {
+  const ext = filename ? filename.split(".").pop()?.toLowerCase() : "";
+
+  // Check magic bytes for PDF (%PDF)
+  const isPDF = mime === "application/pdf" || ext === "pdf" || file.slice(0, 4).toString() === "%PDF";
+  if (isPDF) {
+    try {
+      const pdfData = await pdf(file);
+      if (pdfData.text && pdfData.text.trim().length > 0) {
+        return pdfData.text;
+      }
+    } catch (e) {
+      console.warn("PDF extraction attempt warning:", e);
+    }
+  }
+
+  // Check magic bytes for DOCX (PK zip header 0x50 0x4B 0x03 0x04)
+  const isDocx = mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || ext === "docx" || (file[0] === 0x50 && file[1] === 0x4b);
+  if (isDocx) {
+    try {
+      const result = await mammoth.extractRawText({ buffer: file });
+      if (result.value && result.value.trim().length > 0) {
+        return result.value;
+      }
+    } catch (e) {
+      console.warn("DOCX extraction attempt warning:", e);
+    }
+  }
+
+  // Text/Markdown/RTF check
+  if (mime === "text/plain" || mime === "text/markdown" || mime === "text/rtf" || mime === "application/rtf" || ext === "txt" || ext === "md" || ext === "rtf") {
+    return file.toString("utf-8");
+  }
+
+  if (mime === "application/octet-stream" || !mime) {
     const text = file.toString("utf-8");
     if (text.includes("\n") || text.length < 5000) return text;
   }
+
+  // Fallback: try raw text reading
+  const rawText = file.toString("utf-8");
+  if (rawText && !rawText.includes("\0") && rawText.length > 20) {
+    return rawText;
+  }
+
   throw new Error("Only PDF, DOCX, TXT, MD, and RTF resumes are supported.");
 }
-export async function parseResume(text: string): Promise<ParsedCandidate> {
+
+export async function parseResume(text: string, defaultName?: string): Promise<ParsedCandidate> {
   const cleanedText = cleanText(text);
-  if (cleanedText.length < 40) throw new Error("The document does not contain enough readable text to parse as a resume.");
+  if (cleanedText.length < 30) {
+    throw new Error("The document does not contain enough readable text to parse as a resume.");
+  }
+  
   const contact = extractContactDetails(cleanedText);
   const knownSkills = extractKnownSkills(cleanedText);
-  const anonymizedText = anonymizePII(cleanedText);
-  const data = await generateJson<Partial<ParsedCandidate>>(
-    `Resume:\n${anonymizedText.slice(0, MAX_RESUME_CHARS)}`,
-    "Extract only facts supported by the resume. Do not infer placeholder contact data for [EMAIL], [PHONE], or [CANDIDATE_NAME]. Normalize skills and degrees. Return concise structured JSON with full_name, email, phone, location, headline, summary, skills, education, experience, and total_experience_months. Keep the summary below 80 words and no more than three highlights for each role.",
-    resumeExtractionSchema
-  );
-  return normalizeCandidate(data, contact, knownSkills);
+  const fallbackCandidateName = defaultName || contact.fullName || "Candidate";
+
+  try {
+    const data = await generateJson<Partial<ParsedCandidate>>(
+      `Resume Document:\n${cleanedText.slice(0, MAX_RESUME_CHARS)}`,
+      "Extract structured candidate information supported by the resume text. Return clean JSON with full_name, email, phone, location, headline, summary, skills, education, experience, and total_experience_months.",
+      resumeExtractionSchema
+    );
+    return normalizeCandidate(data, contact, knownSkills, fallbackCandidateName);
+  } catch (llmError) {
+    console.warn("LLM resume extraction failed or timed out, using rule-based parsing fallback:", llmError);
+    return normalizeCandidate(
+      {
+        full_name: contact.fullName || fallbackCandidateName,
+        email: contact.email,
+        phone: contact.phone,
+        skills: knownSkills,
+        summary: cleanedText.slice(0, 300),
+      },
+      contact,
+      knownSkills,
+      fallbackCandidateName
+    );
+  }
 }
 
-export async function parseResumeWithATS(text: string): Promise<ParsedCandidate & { atsFormatting: ATSFormattingReport }> {
-  const candidate = await parseResume(text);
+export async function parseResumeWithATS(text: string, defaultName?: string): Promise<ParsedCandidate & { atsFormatting: ATSFormattingReport }> {
+  const candidate = await parseResume(text, defaultName);
   const atsFormatting = checkATSFormatting(text);
   return { ...candidate, atsFormatting };
 }
-export function profileText(candidate: ParsedCandidate) {
-  return [candidate.headline, candidate.summary, `Skills: ${candidate.skills.join(", ")}`, `Education: ${candidate.education.map((e) => [e.degree, e.field, e.institution].filter(Boolean).join(" ")).join("; ")}`, `Experience: ${candidate.experience.map((e) => [e.title, e.company, ...(e.highlights || [])].filter(Boolean).join(" ")).join("; ")}`, `${candidate.total_experience_months} months experience`].filter(Boolean).join("\n");
+
+/**
+ * Splits and parses documents containing either a single resume or multiple concatenated resumes (bulk resume scan).
+ */
+export async function parseMultipleResumes(
+  text: string,
+  filename?: string
+): Promise<Array<ParsedCandidate & { atsFormatting: ATSFormattingReport }>> {
+  const cleaned = cleanText(text);
+  const defaultBaseName = filename ? filename.replace(/\.[^.]+$/, "") : "Candidate";
+
+  // Check if document contains explicit split indicators or multiple distinct candidates
+  const splits = cleaned
+    .split(/(?:\n\s*[-=_]{4,}\s*\n|\f|\n\s*\[RESUME_SPLIT\]\s*\n)/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 50);
+
+  if (splits.length > 1) {
+    const results: Array<ParsedCandidate & { atsFormatting: ATSFormattingReport }> = [];
+    for (let i = 0; i < splits.length; i++) {
+      const candidateName = `${defaultBaseName} (${i + 1})`;
+      const parsed = await parseResumeWithATS(splits[i], candidateName);
+      results.push(parsed);
+    }
+    return results;
+  }
+
+  // Single resume case
+  const single = await parseResumeWithATS(cleaned, defaultBaseName);
+  return [single];
 }
+
+export function profileText(candidate: ParsedCandidate) {
+  return [
+    candidate.headline,
+    candidate.summary,
+    `Skills: ${candidate.skills.join(", ")}`,
+    `Education: ${candidate.education.map((e) => [e.degree, e.field, e.institution].filter(Boolean).join(" ")).join("; ")}`,
+    `Experience: ${candidate.experience.map((e) => [e.title, e.company, ...(e.highlights || [])].filter(Boolean).join(" ")).join("; ")}`,
+    `${candidate.total_experience_months} months experience`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
