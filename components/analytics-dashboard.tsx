@@ -31,8 +31,8 @@ export interface AnalyticsData {
   candidateSourceData: Array<{ source: string; count: number; avgScore: number }>;
 }
 
-export const QUALITY_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1', '#8b5cf6'];
-export const METRIC_COLORS = ['#3b82f6', '#ef4444', '#10b981'];
+export const QUALITY_COLORS = ['#38bdf8', '#34d399', '#fbbf24', '#f472b6', '#c084fc'];
+export const METRIC_COLORS = ['#38bdf8', '#f472b6', '#34d399'];
 
 /**
  * Match Score Distribution Chart
@@ -52,7 +52,7 @@ export function MatchScoreDistributionChart({
           <XAxis dataKey="range" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="count" fill="#3b82f6" />
+          <Bar dataKey="count" fill="#38bdf8" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -82,7 +82,7 @@ export function MatchQualityChart({
               `${name}: ${value} (${(percent ? percent * 100 : 0).toFixed(0)}%)`
             }
             outerRadius={120}
-            fill="#8884d8"
+            fill="#38bdf8"
             dataKey="value"
           >
             {data.map((entry, index) => (
@@ -112,12 +112,12 @@ export function TimeSeriesChart({ data }: { data: AnalyticsData['timeSeriesData'
           <YAxis yAxisId="right" orientation="right" />
           <Tooltip />
           <Legend />
-          <Bar yAxisId="left" dataKey="matches" fill="#3b82f6" name="Matches" />
+          <Bar yAxisId="left" dataKey="matches" fill="#38bdf8" name="Matches" />
           <Line
             yAxisId="right"
             type="monotone"
             dataKey="avgScore"
-            stroke="#ef4444"
+            stroke="#f472b6"
             name="Avg Score"
           />
         </ComposedChart>
@@ -148,11 +148,11 @@ export function PerformanceMetricsChart({
           <Line
             type="monotone"
             dataKey="precision"
-            stroke="#3b82f6"
+            stroke="#38bdf8"
             name="Precision"
           />
-          <Line type="monotone" dataKey="recall" stroke="#ef4444" name="Recall" />
-          <Line type="monotone" dataKey="f1" stroke="#10b981" name="F1-Score" />
+          <Line type="monotone" dataKey="recall" stroke="#f472b6" name="Recall" />
+          <Line type="monotone" dataKey="f1" stroke="#34d399" name="F1-Score" />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -174,8 +174,8 @@ export function SkillGapChart({ data }: { data: AnalyticsData['skillGapData'] })
           <YAxis />
           <Tooltip />
           <Legend />
-          <Bar dataKey="demand" fill="#ef4444" name="Demand" />
-          <Bar dataKey="supply" fill="#10b981" name="Supply" />
+          <Bar dataKey="demand" fill="#f472b6" name="Demand" />
+          <Bar dataKey="supply" fill="#34d399" name="Supply" />
         </BarChart>
       </ResponsiveContainer>
     </div>
