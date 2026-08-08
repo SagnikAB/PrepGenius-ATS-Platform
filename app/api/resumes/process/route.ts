@@ -84,7 +84,7 @@ export async function POST(request: Request) {
           continue;
         }
 
-        const { data: resume, error: resumeError } = await supabase
+        let { data: resume, error: resumeError } = await supabase
           .from("resumes")
           .insert({
             user_id: user.id,
@@ -98,6 +98,25 @@ export async function POST(request: Request) {
           })
           .select("id")
           .single();
+
+        if (resumeError && (resumeError.message.includes("ats_formatting_report") || resumeError.code === "PGRST204")) {
+          const fallback = await supabase
+            .from("resumes")
+            .insert({
+              user_id: user.id,
+              candidate_id: candidate.id,
+              storage_path: path,
+              original_filename: file.name,
+              mime_type: file.type || "application/octet-stream",
+              extracted_text: extractedRawText,
+              processing_status: "completed",
+            })
+            .select("id")
+            .single();
+
+          resume = fallback.data;
+          resumeError = fallback.error;
+        }
 
         if (resumeError || !resume) {
           errors.push(`${file.name}: Resume record creation failed (${resumeError?.message}).`);
