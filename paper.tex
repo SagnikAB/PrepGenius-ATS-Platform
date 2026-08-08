@@ -47,7 +47,7 @@ mayukh.saha@adamasuniversity.ac.in}
 \textit{Adamas University}, Kolkata, India\\
 Roll: UG/SOET/30/24/071\\
 hrittima.sen@adamasuniversity.ac.in}
-\vspace{0.2in}
+\vspace{0.15in}
 \and
 \IEEEauthorblockN{Arpan Das}
 \IEEEauthorblockA{\textit{Dept. of Computer Science \& Eng.}\\
@@ -78,17 +78,17 @@ Automated candidate screening in contemporary Applicant Tracking Systems (ATS) r
 \end{abstract}
 
 \begin{IEEEkeywords}
-Applicant Tracking Systems, Hybrid Vector Search, Information Retrieval, Natural Language Processing, LLM Evaluation, Skill Gap Analysis, Feature Extraction.
+Applicant Tracking Systems, Hybrid Vector Search, Information Retrieval, Natural Language Processing, LLM Evaluation, Skill Gap Analysis.
 \end{IEEEkeywords}
 
 \section{Introduction}
-The exponential expansion of digital recruitment portals and global remote hiring channels has led to an unprecedented volume of job applications submitted to corporate portals daily. Human Resource (HR) departments and talent acquisition teams rely heavily on Applicant Tracking Systems (ATS) to filter, parse, score, and rank incoming candidate profiles against complex Job Descriptions (JDs). Despite widespread commercial adoption, traditional ATS platforms exhibit fundamental architectural failure modes that severely impair recruitment accuracy, candidate experience, and hiring efficiency.
+The exponential expansion of digital recruitment portals and remote hiring channels has led to an unprecedented volume of job applications submitted to corporate portals daily. Human Resource (HR) departments rely heavily on Applicant Tracking Systems (ATS) to filter, parse, score, and rank incoming candidate profiles against complex Job Descriptions (JDs). Despite widespread adoption, traditional ATS platforms exhibit fundamental architectural failure modes that severely impair recruitment accuracy and hiring efficiency.
 
 \subsection{Operational Motivation and Problem Formulation}
 Contemporary talent acquisition workflows encounter three primary failure modes when processing heterogeneous applicant documents:
 
 \begin{enumerate}
-    \item \textbf{Semantic Inelasticity}: Lexical keyword matching algorithms (e.g., Okapi BM25) rely strictly on exact string tokens. Consequently, candidates who describe technical competencies using alternative nomenclature or contextual synonyms (e.g., listing ``Relational Database Design'' instead of ``PostgreSQL'') are heavily penalized and filtered out.
+    \item \textbf{Semantic Inelasticity}: Lexical keyword matching algorithms (e.g., Okapi BM25) rely strictly on exact string tokens. Candidates who describe technical competencies using alternative nomenclature or contextual synonyms (e.g., listing ``Relational Database Design'' instead of ``PostgreSQL'') are heavily penalized and filtered out.
     \item \textbf{Prerequisite Blindness}: Pure dense vector representation models compress entire multi-page resume documents into unified high-dimensional embeddings. While dense vectors excel at global semantic similarity, they smooth out critical local constraints, such as mandatory industry certifications or minimum years of required domain experience.
     \item \textbf{Structural Layout Corruption}: Candidates frequently submit resumes featuring complex visual structures, including multi-column layouts, embedded tables, graphic icons, or non-standard font encodings. Standard text extractors scramble these elements, producing garbled text strings that corrupt downstream Natural Language Processing (NLP) parsers.
 \end{enumerate}
@@ -119,17 +119,17 @@ Large Language Models (LLMs) allow structured JSON extraction from unstructured 
 Table~\ref{tab:taxonomy} compares existing ATS paradigms against the PrepGenius hybrid architecture.
 
 \begin{table}[htbp]
-\caption{Taxonomic Comparison of ATS Retrieval and Evaluation Paradigms}
+\caption{Taxonomic Comparison of ATS Retrieval Paradigms}
 \label{tab:taxonomy}
 \begin{center}
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccc}
 \toprule
-\textbf{ATS Architecture Paradigm} & \textbf{Semantic Search} & \textbf{Hard Constraints} & \textbf{Layout Auditing} & \textbf{Fault-Tolerance} & \textbf{Inference Efficiency} \\
+\textbf{Paradigm} & \textbf{Semantic} & \textbf{Hard Rules} & \textbf{Layout} & \textbf{Efficiency} \\
 \midrule
-Lexical (BM25 / Inverted Index) & Low & High & None & Low & Very High ($O(1)$) \\
-Pure Dense Vector Embedding & High & Low & None & Medium & High ($O(\log N)$) \\
-Naive Zero-Shot LLM RAG & High & Medium & Low & Low & Low ($O(N)$) \\
-\textbf{PrepGenius (Hybrid Engine)} & \textbf{Very High} & \textbf{High} & \textbf{High (Algorithmic)} & \textbf{High (Dual-Layer)} & \textbf{High (Multi-Stage)} \\
+Lexical (BM25) & Low & High & None & $O(1)$ \\
+Dense Vector & High & Low & None & $O(\log N)$ \\
+Zero-Shot LLM & High & Medium & Low & $O(N)$ \\
+\textbf{PrepGenius} & \textbf{V. High} & \textbf{High} & \textbf{High} & \textbf{Multi-Stage} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -155,7 +155,7 @@ To measure document parsing stability, extracted text streams are analyzed by a 
 \begin{equation}
 S_{\text{ats}} = \max\left(0, \min\left(100, 100 - \sum_{i \in \{e, w, i\}} \lambda_i \cdot N_i \right)\right)
 \end{equation}
-where $N_e$ denotes critical layout errors (e.g., table box-drawing characters $\lfloor \lceil \vert$), $N_w$ denotes layout warnings (multi-column text wrapping), and $N_i$ denotes informational notices (repeating page headers). Penalty coefficients are configured as $\lambda_e = 15$, $\lambda_w = 5$, and $\lambda_i = 1$.
+where $N_e$ denotes critical layout errors (table box-drawing characters), $N_w$ denotes layout warnings (multi-column text wrapping), and $N_i$ denotes informational notices (repeating headers). Penalty coefficients are set to $\lambda_e = 15$, $\lambda_w = 5$, and $\lambda_i = 1$.
 
 \subsection{Boundary-Aware Bulk Multi-Candidate Segmentation}
 When HR users upload bulk document files containing multiple concatenated candidate profiles, PrepGenius applies regex boundary scanning over page break controls (\texttt{\textbackslash f}) and multi-line dividers. Let $T$ be the full document text; $T$ is split into discrete profile blocks $C = \{c_1, c_2, \dots, c_M\}$ whenever:
@@ -187,7 +187,7 @@ F_{\text{overall}} = \sum_{k \in \mathcal{M}} w_k \cdot S_k
 where $\mathcal{M} = \{\text{skills}, \text{exp}, \text{projects}, \text{keywords}, \text{edu}, \text{sem}, \text{format}\}$ and $\sum_{k} w_k = 1.0$.
 
 \begin{table}[htbp]
-\caption{Multi-Factor Scoring Dimensions and Configured Weights}
+\caption{Multi-Factor Scoring Weights}
 \label{tab:weights}
 \begin{center}
 \begin{tabular}{llr}
@@ -207,7 +207,7 @@ ATS Format ($S_{\text{format}}$) & Algorithmic parsing stability & 0.05 \\
 \end{table}
 
 \begin{algorithm}[htbp]
-\caption{PrepGenius Hybrid Retrieval and Re-ranking Algorithm}
+\caption{PrepGenius Hybrid Retrieval Algorithm}
 \label{alg:hybrid}
 \begin{algorithmic}[1]
 \REQUIRE Job Description $J$, Candidate Database $\mathcal{C}$, Limit $K$
@@ -231,7 +231,7 @@ ATS Format ($S_{\text{format}}$) & Algorithmic parsing stability & 0.05 \\
 We conducted comprehensive empirical evaluations to benchmark PrepGenius against standard industry baselines.
 
 \subsection{Experimental Setup and Dataset}
-The benchmark dataset comprised 150 structured candidate resumes across four engineering and management domains (Software Engineering, Data Science, Product Management, and Technical Sales), matched against 20 complex technical job descriptions. Relevance labels ($\text{rel}_i \in \{0, 1, 2, 3\}$) were assigned through blind evaluation by three independent recruitment professionals.
+The benchmark dataset comprised 150 structured candidate resumes across four engineering domains (Software Engineering, Data Science, Product Management, and Technical Sales), matched against 20 complex technical job descriptions. Relevance labels ($\text{rel}_i \in \{0, 1, 2, 3\}$) were assigned through blind evaluation by three independent recruitment professionals.
 
 \subsection{Evaluation Metrics}
 Retrieval quality was measured using standard Information Retrieval metrics:
@@ -255,7 +255,7 @@ Table~\ref{tab:benchmark} summarizes performance across lexical search (BM25), p
 \begin{center}
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Retrieval Model} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{NDCG@10} \\
+\textbf{Model Architecture} & \textbf{Prec.} & \textbf{Rec.} & \textbf{F1} & \textbf{NDCG@10} \\
 \midrule
 Lexical Search (BM25) & 0.621 & 0.745 & 0.677 & 0.684 \\
 Pure Dense Vector (Cosine) & 0.764 & \textbf{0.892} & 0.823 & 0.812 \\
@@ -288,7 +288,7 @@ This paper presented \textbf{PrepGenius}, an intelligent multi-stage hybrid Appl
 \begin{thebibliography}{00}
 \bibitem{b1} C. D. Manning, P. Raghavan, and H. Schütze, \textit{Introduction to Information Retrieval}. Cambridge University Press, 2008.
 \bibitem{b2} J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova, ``BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding,'' in \textit{Proc. NAACL-HLT}, 2019, pp. 4171--4186.
-\bibitem{b3} A. Vaswani \textit{et al.}, ``Attention is all you need,'' in \textit{Proc. NeurIPS}, 2017, pp. 5998--5008.
+\bibitem{b3} A. Vaswani \textit{et al.}, ``Attention is all you need,'' in \textit{Proc. NeurIPS}, 2017, pp. 5998--6008.
 \bibitem{b4} Supabase Team, ``pgvector: Open-source vector similarity search for Postgres,'' 2024. [Online]. Available: \url{https://github.com/pgvector/pgvector}.
 \bibitem{b5} S. Robertson and H. Zaragoza, ``The Probabilistic Relevance Framework: BM25 and Beyond,'' \textit{Foundations and Trends in Information Retrieval}, vol. 3, no. 4, pp. 333--389, 2009.
 \bibitem{b6} N. Reimers and I. Gurevych, ``Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks,'' in \textit{Proc. EMNLP-IJCNLP}, 2019, pp. 3982--3992.
