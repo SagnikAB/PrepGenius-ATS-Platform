@@ -102,7 +102,7 @@ Automated talent acquisition and candidate matching lie at the intersection of I
 \subsection{Lexical and Inverted Index Search}
 Classical recruitment engines rely on inverted index structures and lexical term frequency models such as TF-IDF and Okapi BM25 \cite{b1}, \cite{b5}. While lexical search achieves $O(1)$ query lookup speed, it suffers from vocabulary mismatch and vulnerability to keyword stuffing, where candidates artificially repeat keywords without possessing real expertise.
 
-\subsection{Dense Vector Embeddings & RAG Architectures}
+\subsection{Dense Vector Embeddings and RAG Architectures}
 The advent of Transformer architectures (BERT \cite{b2}, Transformer Attention \cite{b3}, Sentence-BERT \cite{b6}) enabled dense contextual embeddings that capture semantic intent. In Retrieval-Augmented Generation (RAG) paradigms, candidate documents are mapped into continuous vector spaces. However, uniform vector averaging across multi-page resume documents frequently dilutes localized technical prerequisites, causing low precision in specialized technical screening.
 
 \subsection{LLM-Driven Information Extraction}
@@ -112,7 +112,8 @@ Large Language Models (LLMs) allow structured JSON extraction from unstructured 
 Table~\ref{tab:taxonomy} compares existing ATS paradigms against the PrepGenius hybrid architecture.
 
 \begin{table*}[htbp]
-\caption{Taxonomic Comparison of ATS Retrieval & Evaluation Paradigms}
+\caption{Taxonomic Comparison of ATS Retrieval and Evaluation Paradigms}
+\label{tab:taxonomy}
 \begin{center}
 \begin{tabular}{lccccc}
 \toprule
@@ -124,14 +125,13 @@ Naive Zero-Shot LLM RAG & High & Medium & Low & Low & Low ($O(N)$) \\
 \textbf{PrepGenius (Hybrid Engine)} & \textbf{Very High} & \textbf{High} & \textbf{High (Algorithmic)} & \textbf{High (Dual-Layer)} & \textbf{High (Multi-Stage)} \\
 \bottomrule
 \end{tabular}
-\label{tab:taxonomy}
 \end{center}
-\end{table}
+\end{table*}
 
 \section{PrepGenius System Architecture}
-The PrepGenius architecture is structured into five decoupled operational layers: File Intake \& Magic Byte Inspection, Structural ATS Layout Auditing, Bulk Boundary Segmentation, Multi-Stage Hybrid Vector Matching, and Multi-Factor Score Fusion.
+The PrepGenius architecture is structured into five decoupled operational layers: File Intake and Magic Byte Inspection, Structural ATS Layout Auditing, Bulk Boundary Segmentation, Multi-Stage Hybrid Vector Matching, and Multi-Factor Score Fusion.
 
-\subsection{File Intake & Magic Byte Disambiguation}
+\subsection{File Intake and Magic Byte Disambiguation}
 File uploads submitted via web clients frequently carry generic MIME declarations (e.g., \texttt{application/octet-stream}). PrepGenius implements byte-level magic number inspection to route documents to appropriate extractors:
 \begin{equation}
 \text{FileType}(B) = 
@@ -180,7 +180,8 @@ F_{\text{overall}} = \sum_{k \in \mathcal{M}} w_k \cdot S_k
 where $\mathcal{M} = \{\text{skills}, \text{exp}, \text{projects}, \text{keywords}, \text{edu}, \text{sem}, \text{format}\}$ and $\sum_{k} w_k = 1.0$.
 
 \begin{table}[htbp]
-\caption{Multi-Factor Scoring Dimensions & Configured Weights}
+\caption{Multi-Factor Scoring Dimensions and Configured Weights}
+\label{tab:weights}
 \begin{center}
 \begin{tabular}{llr}
 \toprule
@@ -195,12 +196,11 @@ Semantic ($S_{\text{sem}}$) & LLM contextual fit evaluation & 0.10 \\
 ATS Format ($S_{\text{format}}$) & Algorithmic parsing stability & 0.05 \\
 \bottomrule
 \end{tabular}
-\label{tab:weights}
 \end{center}
 \end{table}
 
 \begin{algorithm}[htbp]
-\caption{PrepGenius Hybrid Retrieval & Re-ranking Algorithm}
+\caption{PrepGenius Hybrid Retrieval and Re-ranking Algorithm}
 \label{alg:hybrid}
 \begin{algorithmic}[1]
 \REQUIRE Job Description $J$, Candidate Database $\mathcal{C}$, Limit $K$
@@ -220,10 +220,10 @@ ATS Format ($S_{\text{format}}$) & Algorithmic parsing stability & 0.05 \\
 \end{algorithmic}
 \end{algorithm}
 
-\section{Experimental Evaluation & Benchmark Results}
+\section{Experimental Evaluation and Benchmark Results}
 We conducted comprehensive empirical evaluations to benchmark PrepGenius against standard industry baselines.
 
-\subsection{Experimental Setup & Dataset}
+\subsection{Experimental Setup and Dataset}
 The benchmark dataset comprised 150 structured candidate resumes across four engineering and management domains (Software Engineering, Data Science, Product Management, and Technical Sales), matched against 20 complex technical job descriptions. Relevance labels ($\text{rel}_i \in \{0, 1, 2, 3\}$) were assigned through blind evaluation by three independent recruitment professionals.
 
 \subsection{Evaluation Metrics}
@@ -244,6 +244,7 @@ Table~\ref{tab:benchmark} summarizes performance across lexical search (BM25), p
 
 \begin{table}[htbp]
 \caption{System Performance Benchmark Comparison}
+\label{tab:benchmark}
 \begin{center}
 \begin{tabular}{lcccc}
 \toprule
@@ -255,7 +256,6 @@ SBERT RAG Pipeline & 0.815 & 0.830 & 0.822 & 0.854 \\
 \textbf{PrepGenius (Hybrid Engine)} & \textbf{0.912} & 0.865 & \textbf{0.888} & \textbf{0.935} \\
 \bottomrule
 \end{tabular}
-\label{tab:benchmark}
 \end{center}
 \end{table}
 
@@ -267,7 +267,7 @@ We performed ablation experiments by systematically isolating key scoring module
     \item \textbf{W/O ATS Layout Auditing}: Processing failures increased by 12.3\% when handling multi-column PDF resumes.
 \end{itemize}
 
-\section{Discussion, Ethical Safeguards & Hiring Fairness}
+\section{Discussion, Ethical Safeguards and Hiring Fairness}
 Automated recruitment systems must operate transparently to prevent demographic bias. PrepGenius incorporates three ethical AI safeguards:
 \begin{enumerate}
     \item \textbf{PII Anonymization}: Contact details (names, emails, phone numbers, social handles) are sanitized prior to LLM evaluation to eliminate demographic bias.
@@ -281,7 +281,7 @@ This paper presented \textbf{PrepGenius}, an intelligent multi-stage hybrid Appl
 \begin{thebibliography}{00}
 \bibitem{b1} C. D. Manning, P. Raghavan, and H. Schütze, \textit{Introduction to Information Retrieval}. Cambridge University Press, 2008.
 \bibitem{b2} J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova, ``BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding,'' in \textit{Proc. NAACL-HLT}, 2019, pp. 4171--4186.
-\bibitem{b3} A. Vaswani \textit{et al.}, ``Attention is all you need,'' in \textit{Proc. NeurIPS}, 2017, pp. 5998--6008.
+\bibitem{b3} A. Vaswani \textit{et al.}, ``Attention is all you need,'' in \textit{Proc. NeurIPS}, 2017, pp. 5998--5008.
 \bibitem{b4} Supabase Team, ``pgvector: Open-source vector similarity search for Postgres,'' 2024. [Online]. Available: \url{https://github.com/pgvector/pgvector}.
 \bibitem{b5} S. Robertson and H. Zaragoza, ``The Probabilistic Relevance Framework: BM25 and Beyond,'' \textit{Foundations and Trends in Information Retrieval}, vol. 3, no. 4, pp. 333--389, 2009.
 \bibitem{b6} N. Reimers and I. Gurevych, ``Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks,'' in \textit{Proc. EMNLP-IJCNLP}, 2019, pp. 3982--3992.
