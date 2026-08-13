@@ -24,7 +24,8 @@ const SKILL_PATTERNS = [
   "AWS", "Azure", "GCP", "Docker", "Kubernetes", "Terraform", "Git", "GitHub Actions", "Jenkins",
   "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "Kafka", "GraphQL", "REST", "gRPC",
   "HTML", "CSS", "Tailwind", "Figma", "Jest", "Cypress", "Playwright", "Machine Learning", "TensorFlow", "PyTorch",
-  "Pandas", "NumPy", "Tableau", "Power BI", "Excel", "Salesforce", "Supabase", "GitLab", "CI/CD",
+  "Pandas", "NumPy", "Tableau", "Power BI", "Excel", "Salesforce", "Supabase", "GitLab", "CI/CD", "PHP",
+  "R programming language", "SAS", "R Studio",
 ];
 
 const resumeExtractionSchema: GeminiSchema = {
@@ -117,7 +118,7 @@ function extractContactDetails(text: string) {
   const email = text.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/i)?.[0];
   const phone = text.match(/(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3,4}[\s.-]\d{3,4}/)?.[0]?.trim();
   const named = text.match(/(?:^|\n)\s*(?:name|candidate|applicant)\s*:\s*([^\n]+)/i)?.[1];
-  
+
   const candidateLines = text.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
   const firstCandidateLine = candidateLines.find((line) => {
     if (SECTION_HEADER_REGEX.test(line)) return false;
@@ -176,7 +177,7 @@ function normalizeCandidate(
     field: cleanString(entry?.field, 150),
     year: cleanString(entry?.year, 20),
   })) : [];
-  
+
   const experience = Array.isArray(data.experience) ? data.experience.slice(0, 15).map((entry) => ({
     title: cleanString(entry?.title, 150),
     company: cleanString(entry?.company, 150),
@@ -191,8 +192,8 @@ function normalizeCandidate(
   const fullName = !isInvalidLLMName
     ? rawLLMName
     : (contact.fullName && !SECTION_HEADER_REGEX.test(contact.fullName)
-        ? contact.fullName
-        : fallbackName);
+      ? contact.fullName
+      : fallbackName);
 
   const modelMonths = Number(data.total_experience_months);
   const estimatedMonths = estimateExperienceMonths(experience);
@@ -264,7 +265,7 @@ export async function parseResume(text: string, defaultName?: string): Promise<P
   if (cleanedText.length < 30) {
     throw new Error("The document does not contain enough readable text to parse as a resume.");
   }
-  
+
   const contact = extractContactDetails(cleanedText);
   const knownSkills = extractKnownSkills(cleanedText);
   const fallbackCandidateName = defaultName || contact.fullName || "Candidate";
